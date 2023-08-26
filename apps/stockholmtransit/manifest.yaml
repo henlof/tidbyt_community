@@ -1,0 +1,8 @@
+---
+id: stockholmtransit
+name: Stockholm Transit
+summary: Stop departures for Stockholm public transport (SL)
+desc: This app displays upcoming departure times for selected stops
+author: henlof
+fileName: stockholmtransit.star
+packageName: stockholmtransit
