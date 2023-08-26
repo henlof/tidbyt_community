@@ -1,6 +1,8 @@
 load("render.star", "render")
 load("http.star", "http")
 load("time.star", "time")
+load("schema.star", "schema")
+load("humanize.star", "humanize")
 
 RESROBOT_STOPS_URL = "https://api.resrobot.se/v2.1/departureBoard"
 DEFAULT_STOP_ID = "740020101" # Slussen
@@ -9,6 +11,7 @@ GEO_LOCATION = "Europe/Stockholm"
 DEFAULT_TTL_SECONDS = 15
 SL_OPERATOR_CODE = str(275)
 PRODUCT_CLASS_CODE = str(4 + 16 + 32 + 64 + 128)
+FONT = "tom-thumb"
 
 def main(config):
 
@@ -41,21 +44,20 @@ def main(config):
             dict(
                 dir = d["direction"].split("(")[0],
                 line = d["Product"][0]["displayNumber"],
-                time = time.parse_time(
-                    d["time"],
-                    format = "15:04:05",
-                    location = GEO_LOCATION
-                )
+                timestamp = create_timestamp(d["date"], d["time"], GEO_LOCATION)
             ) for d in dept ]
 
     now = time.now().in_location(GEO_LOCATION)
 
+    print(data[0]["timestamp"])
+    print(now)
+
     rows = [
         render.Row(
             children=[
-                render.Text(content=d["line"], color="#099"),
-                render.Marquee(width=28, child=render.Text(content=d["dir"])),
-                render.Text(content=format_duration(d["time"] - now), color="#834")
+                render.Text(content=d["line"], color="#099", font = FONT),
+                render.Marquee(width=28, child=render.Text(content=d["dir"], font = FONT)),
+                render.Text(content=humanize.relative_time(d["timestamp"], now), color="#834", font = FONT)
             ],
             main_align="space_evenly",
             expanded=True
@@ -68,16 +70,38 @@ def main(config):
                 render.Text(stop),
                 rows[0],
                 rows[1],
-                rows[2]
+                rows[2],
+                rows[3]
             ],
             main_align="start"
         )
     )
 
-def format_duration(d):
-    if d.hours > 1:
-        return str(int(d.hours + 0.5)) + " h"
-    elif d.minutes > 1:
-        return str(int(d.minutes + 0.5)) + " min"
-    else:
-        return "now"
+def create_timestamp(d, t, loc):
+    yy, mm, dd = d.split("-")
+    hh, m, s = t.split(":")
+    n = 0
+    return time.time(
+        year = int(yy), month = int(mm), day = int(dd), 
+        hour = int(hh), minute = int(m), second = int(s),
+        nanosecond = n, location = loc)
+
+def get_time(d, t):
+    return time.parse_time(
+        d + "T" + t,
+        format = "2023-10-02T10:18:00",
+        location = GEO_LOCATION
+    )
+
+def get_schema():
+    return schema.Schema(
+        version = "1",
+        fields = [
+            schema.Text(
+                id = "stop_id",
+                name = "ResRobot stop ID",
+                desc = "ID of the stop you wish to monitor",
+                icon = "user",
+            )
+        ],
+    )
